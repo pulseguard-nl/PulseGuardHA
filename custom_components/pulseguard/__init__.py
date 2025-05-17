@@ -3,6 +3,8 @@ import asyncio
 import logging
 from datetime import timedelta
 import time
+import json
+import hashlib
 
 import async_timeout
 import voluptuous as vol
@@ -81,6 +83,8 @@ class PulseGuardCoordinator(DataUpdateCoordinator):
         self.device_uuid = device_uuid
         self.api_url = api_url
         self.start_time = time.time()
+        self.last_data_hash = None
+        self.error_count = 0
         
     async def _async_update_data(self):
         """Fetch data from PulseGuard API."""
@@ -91,11 +95,20 @@ class PulseGuardCoordinator(DataUpdateCoordinator):
                     self._get_system_stats
                 )
                 
+                # Reset error count on successful update
+                if self.error_count > 0:
+                    self.error_count = 0
+                    _LOGGER.info("Successfully reconnected to PulseGuard API after %d errors", self.error_count)
+                
                 # Return all collected data
                 return {
                     "system": system_stats,
                 }
         except Exception as err:
+            self.error_count += 1
+            # Only log every 5 errors to avoid flooding the logs
+            if self.error_count == 1 or self.error_count % 5 == 0:
+                _LOGGER.error("Error #%d communicating with PulseGuard API: %s", self.error_count, err)
             raise UpdateFailed(f"Error communicating with API: {err}")
     
     def _get_system_stats(self):
@@ -143,15 +156,11 @@ class PulseGuardCoordinator(DataUpdateCoordinator):
             "uptime": uptime_seconds
         }
         
-        # Send check-in to PulseGuard API
-        check_in_url = f"{self.api_url}/devices/check-in"
+        # Calculate a hash of the data to check if it has changed
+        data_to_hash = f"{cpu_usage}-{memory_usage}-{disk_usage}-{uptime_seconds}"
+        current_hash = hashlib.md5(data_to_hash.encode()).hexdigest()
         
-        headers = {
-            "Content-Type": "application/json",
-            "X-API-Token": self.api_token,
-            "Accept": "application/json"
-        }
-        
+        # Create the full data payload
         data = {
             "hostname": hostname,
             "ip_address": ip_address,
@@ -163,14 +172,36 @@ class PulseGuardCoordinator(DataUpdateCoordinator):
             "services": []
         }
         
+        # Send check-in to PulseGuard API
+        check_in_url = f"{self.api_url}/devices/check-in"
+        
+        headers = {
+            "Content-Type": "application/json",
+            "X-API-Token": self.api_token,
+            "Accept": "application/json"
+        }
+        
         try:
+            # Only log the data if it has changed significantly or it's the first time
+            if self.last_data_hash is None or self.last_data_hash != current_hash:
+                _LOGGER.debug("Sending check-in to PulseGuard API with data: %s", json.dumps(data))
+                self.last_data_hash = current_hash
+            
             response = requests.post(check_in_url, headers=headers, json=data, timeout=10)
+            
+            # Log response only if it's an error
+            if response.status_code >= 400:
+                _LOGGER.error("Error response from PulseGuard API: %s - %s", 
+                             response.status_code, response.text)
             response.raise_for_status()
             
             # Return the metrics as they'll be needed for the sensors
             return metrics
         except requests.exceptions.RequestException as err:
             _LOGGER.error("Error sending check-in to PulseGuard API: %s", err)
+            # Include response details if available
+            if hasattr(err, "response") and err.response is not None:
+                _LOGGER.error("Response content: %s", err.response.text)
             return metrics
     
     def _get_local_ip(self):
@@ -183,7 +214,7 @@ class PulseGuardCoordinator(DataUpdateCoordinator):
             s.close()
             return ip_address
         except Exception:
-            return "Unknown"
+            return "127.0.0.1"
     
     def _get_mac_address(self):
         """Get the MAC address."""

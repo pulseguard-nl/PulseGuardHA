@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import json
 from typing import Any
 
 import voluptuous as vol
@@ -39,6 +40,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         import platform
         import socket
         import uuid
+        import psutil
         
         # Try to call the API to validate the credentials
         api_url = data.get(CONF_API_URL, DEFAULT_API_URL)
@@ -55,7 +57,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             ip_address = s.getsockname()[0]
             s.close()
         except Exception:
-            ip_address = "Unknown"
+            ip_address = "127.0.0.1"
             
         # Get MAC address
         try:
@@ -63,26 +65,36 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
                             for elements in range(0, 8 * 6, 8)][::-1])
         except Exception:
             mac = "00:00:00:00:00:00"
-            
-        # Create payload with all required fields
+        
+        # Get system metrics
+        cpu_usage = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        memory_usage = memory.percent
+        disk = psutil.disk_usage('/')
+        disk_usage = disk.percent
+        
+        # Create validation data with all required fields
         validation_data = {
-            "hostname": f"Home Assistant Integration - {hostname}",
+            "hostname": f"Home Assistant - {hostname}",
             "ip_address": ip_address,
             "mac_address": mac,
             "os_type": "homeassistant",
-            "os_version": "unknown",
+            "os_version": platform.version(),
             "system_specs": {
-                "cpu_cores": 1,
-                "total_memory": 1024
+                "cpu_cores": psutil.cpu_count(logical=True),
+                "total_memory": memory.total // (1024 * 1024)  # Convert to MB
             },
             "metrics": {
-                "cpu_usage": 0,
-                "memory_usage": 0,
-                "disk_usage": 0,
-                "uptime": 0
+                "cpu_usage": cpu_usage,
+                "memory_usage": memory_usage,
+                "disk_usage": disk_usage,
+                "uptime": 60  # Just a placeholder for validation
             },
             "services": []
         }
+        
+        # Log the actual data being sent
+        _LOGGER.debug("Sending validation data to PulseGuard API: %s", json.dumps(validation_data))
         
         # Test API connectivity
         response = await hass.async_add_executor_job(
@@ -98,6 +110,10 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             )
         )
         
+        # Log response details
+        _LOGGER.debug("API Response Status: %s", response.status_code)
+        _LOGGER.debug("API Response Body: %s", response.text[:200])  # First 200 chars to avoid massive logs
+        
         # If the server responds with an error, raise an exception
         response.raise_for_status()
         
@@ -109,6 +125,8 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         }
     except requests.exceptions.RequestException as err:
         _LOGGER.error("Error connecting to PulseGuard API: %s", err)
+        if hasattr(err, "response") and err.response is not None:
+            _LOGGER.error("Response content: %s", err.response.text)
         raise CannotConnect from err
     except Exception as err:
         _LOGGER.exception("Unexpected error: %s", err)
