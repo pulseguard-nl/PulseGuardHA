@@ -1,0 +1,23 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to PulseGuard",
+        "description": "Set up PulseGuard integration. You need your device UUID and API token from PulseGuard.",
+        "data": {
+          "device_uuid": "Device UUID",
+          "api_token": "API Token",
+          "api_url": "API URL (Optional)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to PulseGuard API",
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This device is already configured"
+    }
+  }
+} 

@@ -1,73 +1,55 @@
 # PulseGuard for Home Assistant
 
-PulseGuard integration for Home Assistant allows you to monitor your Home Assistant instance and track system performance metrics from your PulseGuard dashboard.
+This is the Home Assistant integration for PulseGuard monitoring system. Monitor your Home Assistant instance with the same powerful tools used for monitoring Linux and Windows devices.
 
 ## Features
 
-- Monitor CPU, memory, and disk usage
-- Automatic check-ins and status reporting
-- Customizable reporting interval
-- Track add-on status (optional)
+- Monitor CPU, memory, and disk usage of your Home Assistant instance
+- Track system uptime
+- Send metrics to your PulseGuard dashboard
+- Get alerts when your Home Assistant instance exceeds thresholds or goes offline
 
 ## Installation
 
-### HACS Installation (Recommended)
+### HACS (Recommended)
 
-1. Make sure [HACS](https://hacs.xyz/) is installed in your Home Assistant instance
-2. Go to HACS → Integrations → "+" → "Custom Repository"
-3. Enter repository URL: `https://github.com/pulseguard/home-assistant-integration`
-4. Select "Integration" as the category
-5. Click "Add"
-6. Find and install "PulseGuard" from the list of integrations
+1. Make sure you have [HACS](https://hacs.xyz/) installed
+2. Go to HACS → Integrations → Add Integration
+3. Search for "PulseGuard" and install it
+4. Restart Home Assistant
 
 ### Manual Installation
 
-1. Download the latest release from GitHub
-2. Copy the `pulseguard` folder to your Home Assistant `custom_components` directory
-3. Restart Home Assistant
+1. Copy the `custom_components/pulseguard` directory to your Home Assistant `/config/custom_components/` directory
+2. Restart Home Assistant
 
 ## Configuration
 
-### UI Configuration (Recommended)
-
-The easiest way to set up PulseGuard is through the Home Assistant UI:
-
-1. Go to Settings → Devices & Services
-2. Click the "+ ADD INTEGRATION" button
+1. After installation, go to Home Assistant → Settings → Devices & Services
+2. Click on "+ Add Integration" button
 3. Search for "PulseGuard" and select it
-4. Enter your PulseGuard API token and Device ID
-5. Click "Submit" to complete the setup
+4. Enter your PulseGuard Device UUID and API Token (these can be found in your PulseGuard dashboard)
+5. Click Submit
 
-### YAML Configuration (Alternative)
+## Requirements
 
-Alternatively, you can configure PulseGuard by adding this to your `configuration.yaml` file:
-
-```yaml
-pulseguard:
-  api_token: "YOUR_API_TOKEN"
-  device_id: "YOUR_DEVICE_ID"
-  report_interval: 60  # Optional: Reporting interval in seconds (default: 60)
-```
-
-### Configuration Options
-
-| Option | Type | Required | Default | Description |
-|--------|------|----------|---------|-------------|
-| `api_token` | string | Yes | - | Your PulseGuard API token |
-| `device_id` | string | Yes | - | Your PulseGuard device ID |
-| `api_url` | string | No | `https://app.pulseguard.nl/api` | PulseGuard API URL |
-| `report_interval` | integer | No | 60 | Reporting interval in seconds |
-| `include_sensors` | boolean | No | true | Include Home Assistant sensor data |
-| `monitor_addons` | boolean | No | true | Monitor Home Assistant add-ons |
+- You must have a PulseGuard account
+- You need to create a device in your PulseGuard dashboard to get a Device UUID and API Token
 
 ## Troubleshooting
 
-If you're having issues with the integration, check the Home Assistant logs for error messages related to PulseGuard.
+- If the integration fails to connect, check your Device UUID and API Token
+- Ensure your Home Assistant instance can reach the PulseGuard API server
+- Check the Home Assistant logs for any error messages
 
-1. Check that your API token and device ID are correct
-2. Ensure your Home Assistant instance has internet access
-3. Check the logs for any error messages
+## Getting Help
 
-## Support
+If you need help with this integration:
 
-For support, please visit [PulseGuard Support](https://pulseguard.nl/support) or open an issue on our [GitHub repository](https://github.com/pulseguard/home-assistant-integration/issues). 
+1. Check the [PulseGuard documentation](https://www.pulseguard.nl/docs)
+2. Report issues on our [GitHub repository](https://github.com/pulseguard/home-assistant-integration)
+3. Contact our support team at support@pulseguard.nl
+
+## License
+
+This integration is released under the MIT License. 

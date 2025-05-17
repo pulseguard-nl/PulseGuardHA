@@ -1,0 +1,12 @@
+{
+  "domain": "pulseguard",
+  "name": "PulseGuard",
+  "config_flow": true,
+  "documentation": "https://www.pulseguard.nl/docs",
+  "issue_tracker": "https://github.com/pulseguard/pulseguard/issues",
+  "requirements": ["requests>=2.25.1"],
+  "dependencies": [],
+  "codeowners": ["@pulseguard"],
+  "version": "1.0.0",
+  "iot_class": "cloud_polling"
+} 

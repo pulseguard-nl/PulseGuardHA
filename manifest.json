@@ -1,0 +1,8 @@
+{
+  "name": "PulseGuard",
+  "documentation": "https://www.pulseguard.nl/docs",
+  "issues": "https://github.com/pulseguard/home-assistant-integration/issues",
+  "render_readme": true,
+  "domains": ["sensor"],
+  "homeassistant": "2023.3.0"
+}
