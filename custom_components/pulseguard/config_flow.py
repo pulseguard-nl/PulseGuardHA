@@ -57,6 +57,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             ip_address = s.getsockname()[0]
             s.close()
         except Exception:
+            # Use a specific IP to avoid "Unknown" which the API may reject
             ip_address = "127.0.0.1"
             
         # Get MAC address
@@ -73,6 +74,20 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         disk = psutil.disk_usage('/')
         disk_usage = disk.percent
         
+        # Create system specs payload - must be an object
+        system_specs = {
+            "cpu_cores": psutil.cpu_count(logical=True),
+            "total_memory": memory.total // (1024 * 1024)  # Convert to MB
+        }
+        
+        # Create metrics payload - must be an object
+        metrics = {
+            "cpu_usage": cpu_usage,
+            "memory_usage": memory_usage,
+            "disk_usage": disk_usage,
+            "uptime": 60  # Just a placeholder for validation
+        }
+        
         # Create validation data with all required fields
         validation_data = {
             "hostname": f"Home Assistant - {hostname}",
@@ -80,39 +95,44 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "mac_address": mac,
             "os_type": "homeassistant",
             "os_version": platform.version(),
-            "system_specs": {
-                "cpu_cores": psutil.cpu_count(logical=True),
-                "total_memory": memory.total // (1024 * 1024)  # Convert to MB
-            },
-            "metrics": {
-                "cpu_usage": cpu_usage,
-                "memory_usage": memory_usage,
-                "disk_usage": disk_usage,
-                "uptime": 60  # Just a placeholder for validation
-            },
+            "system_specs": system_specs,
+            "metrics": metrics,
             "services": []
         }
         
-        # Log the actual data being sent
-        _LOGGER.debug("Sending validation data to PulseGuard API: %s", json.dumps(validation_data))
+        # Force string values for fields that require strings
+        validation_data["ip_address"] = str(validation_data["ip_address"])
+        validation_data["mac_address"] = str(validation_data["mac_address"])
+        validation_data["os_type"] = str(validation_data["os_type"])
+        validation_data["os_version"] = str(validation_data["os_version"])
         
-        # Test API connectivity
+        # Log the validation data for debugging
+        json_data = json.dumps(validation_data, indent=2)
+        _LOGGER.debug("VALIDATION DATA PAYLOAD: %s", json_data)
+        
+        # Set up headers
+        headers = {
+            "Content-Type": "application/json",
+            "X-API-Token": api_token,
+            "Accept": "application/json",
+        }
+        
+        _LOGGER.debug("API URL: %s", f"{api_url}/devices/check-in")
+        _LOGGER.debug("Headers: %s", json.dumps(headers))
+        
+        # Test API connectivity - make the call synchronously in a thread
         response = await hass.async_add_executor_job(
             lambda: requests.post(
                 f"{api_url}/devices/check-in",
-                headers={
-                    "Content-Type": "application/json",
-                    "X-API-Token": api_token,
-                    "Accept": "application/json",
-                },
+                headers=headers,
                 json=validation_data,
-                timeout=10,
+                timeout=30,  # Longer timeout for initial connection
             )
         )
         
         # Log response details
         _LOGGER.debug("API Response Status: %s", response.status_code)
-        _LOGGER.debug("API Response Body: %s", response.text[:200])  # First 200 chars to avoid massive logs
+        _LOGGER.debug("API Response Body: %s", response.text)
         
         # If the server responds with an error, raise an exception
         response.raise_for_status()
@@ -126,6 +146,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     except requests.exceptions.RequestException as err:
         _LOGGER.error("Error connecting to PulseGuard API: %s", err)
         if hasattr(err, "response") and err.response is not None:
+            _LOGGER.error("Response status code: %s", err.response.status_code)
             _LOGGER.error("Response content: %s", err.response.text)
         raise CannotConnect from err
     except Exception as err:
