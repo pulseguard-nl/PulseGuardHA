@@ -1,0 +1,7 @@
+{
+  "name": "PulseGuard Integration",
+  "domains": ["pulseguard"],
+  "render_readme": true,
+  "iot_class": "cloud_polling",
+  "homeassistant": "2023.3.0"
+} 
