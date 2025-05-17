@@ -38,10 +38,14 @@ def test_api_connection(api_token, device_uuid, api_url="https://app.pulseguard.
     ip_address = get_local_ip()
     mac_address = get_mac_address()
     
-    # Get system metrics
-    cpu_usage = psutil.cpu_percent(interval=1)
+    # Get system metrics - using non-blocking method
+    # This is fine in a script but would cause issues in Home Assistant
+    print("Getting CPU usage...")
+    cpu_usage = psutil.cpu_percent(interval=None)  # Non-blocking call
+    print("Getting memory info...")
     memory = psutil.virtual_memory()
     memory_usage = memory.percent
+    print("Getting disk info...")
     disk = psutil.disk_usage('/')
     disk_usage = disk.percent
     

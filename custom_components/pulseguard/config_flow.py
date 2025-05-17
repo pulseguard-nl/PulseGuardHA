@@ -67,8 +67,9 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
         except Exception:
             mac = "00:00:00:00:00:00"
         
-        # Get system metrics
-        cpu_usage = psutil.cpu_percent(interval=1)
+        # Get system metrics - use cpu_percent without interval to avoid blocking
+        # and run the blocking operation in a separate thread if needed
+        cpu_usage = psutil.cpu_percent(interval=None)  # Non-blocking call
         memory = psutil.virtual_memory()
         memory_usage = memory.percent
         disk = psutil.disk_usage('/')
