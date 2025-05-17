@@ -36,11 +36,53 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     # Validate the API token and device UUID by making a test API call
     try:
         import requests
+        import platform
+        import socket
+        import uuid
         
         # Try to call the API to validate the credentials
         api_url = data.get(CONF_API_URL, DEFAULT_API_URL)
         device_uuid = data[CONF_DEVICE_UUID]
         api_token = data[CONF_API_TOKEN]
+        
+        # Get system info for validation request
+        hostname = platform.node()
+        
+        # Get IP address
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip_address = s.getsockname()[0]
+            s.close()
+        except Exception:
+            ip_address = "Unknown"
+            
+        # Get MAC address
+        try:
+            mac = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff)
+                            for elements in range(0, 8 * 6, 8)][::-1])
+        except Exception:
+            mac = "00:00:00:00:00:00"
+            
+        # Create payload with all required fields
+        validation_data = {
+            "hostname": f"Home Assistant Integration - {hostname}",
+            "ip_address": ip_address,
+            "mac_address": mac,
+            "os_type": "homeassistant",
+            "os_version": "unknown",
+            "system_specs": {
+                "cpu_cores": 1,
+                "total_memory": 1024
+            },
+            "metrics": {
+                "cpu_usage": 0,
+                "memory_usage": 0,
+                "disk_usage": 0,
+                "uptime": 0
+            },
+            "services": []
+        }
         
         # Test API connectivity
         response = await hass.async_add_executor_job(
@@ -51,10 +93,7 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
                     "X-API-Token": api_token,
                     "Accept": "application/json",
                 },
-                json={
-                    "test": True,
-                    "hostname": "Home Assistant Integration Test",
-                },
+                json=validation_data,
                 timeout=10,
             )
         )

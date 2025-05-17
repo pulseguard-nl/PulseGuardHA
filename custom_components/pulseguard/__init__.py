@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from datetime import timedelta
+import time
 
 import async_timeout
 import voluptuous as vol
@@ -79,6 +80,7 @@ class PulseGuardCoordinator(DataUpdateCoordinator):
         self.api_token = api_token
         self.device_uuid = device_uuid
         self.api_url = api_url
+        self.start_time = time.time()
         
     async def _async_update_data(self):
         """Fetch data from PulseGuard API."""
@@ -107,14 +109,24 @@ class PulseGuardCoordinator(DataUpdateCoordinator):
         memory_usage = memory.percent
         disk = psutil.disk_usage('/')
         disk_usage = disk.percent
-        uptime_seconds = int(self.hass.data["uptime"].value())
+        
+        # Get uptime - safely handle missing uptime sensor
+        try:
+            if "uptime" in self.hass.data and hasattr(self.hass.data["uptime"], "value"):
+                uptime_seconds = int(self.hass.data["uptime"].value())
+            else:
+                # Calculate uptime from when this integration started
+                uptime_seconds = int(time.time() - self.start_time)
+        except Exception:
+            # Fallback to runtime since component started
+            uptime_seconds = int(time.time() - self.start_time)
         
         # Get system information
         import platform
         hostname = platform.node()
         ip_address = self._get_local_ip()
         mac_address = self._get_mac_address()
-        os_type = platform.system().lower()
+        os_type = "homeassistant"
         os_version = platform.version()
         
         # Create system specs payload
@@ -176,6 +188,9 @@ class PulseGuardCoordinator(DataUpdateCoordinator):
     def _get_mac_address(self):
         """Get the MAC address."""
         import uuid
-        mac = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff)
-                        for elements in range(0, 8 * 6, 8)][::-1])
-        return mac 
+        try:
+            mac = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff)
+                            for elements in range(0, 8 * 6, 8)][::-1])
+            return mac
+        except Exception:
+            return "00:00:00:00:00:00" 
