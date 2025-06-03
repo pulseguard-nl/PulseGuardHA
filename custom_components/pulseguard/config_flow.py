@@ -88,17 +88,25 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
             "disk_usage": disk_usage,
             "uptime": 60  # Just a placeholder for validation
         }
-        
-        # Create validation data with all required fields
+          # Create validation data with all required fields
         validation_data = {
+            "token": api_token,  # Add token field
+            "uuid": device_uuid,  # Add uuid field
+            "device_uuid": device_uuid,  # Keep device_uuid for compatibility
             "hostname": f"Home Assistant - {hostname}",
             "ip_address": ip_address,
             "mac_address": mac,
             "os_type": "homeassistant",
             "os_version": platform.version(),
             "system_specs": system_specs,
-            "metrics": metrics,
-            "services": []
+            "cpu_usage": cpu_usage,  # Add top-level metrics as in main.js
+            "memory_usage": memory_usage,
+            "disk_usage": disk_usage,
+            "uptime_seconds": 60,  # Add uptime_seconds instead of uptime
+            "services": [],
+            "network_stats": [],  # Add empty network stats
+            "process_stats": [],  # Add empty process stats
+            "additional_metrics": {}  # Add empty additional metrics
         }
         
         # Force string values for fields that require strings
